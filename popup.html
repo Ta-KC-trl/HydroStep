@@ -95,22 +95,38 @@
       <div class="settings-card">
         <h2 class="settings-title">Working Hours</h2>
         <div class="settings-row">
-          <label for="set-start">Start Hour (0-23)</label>
-          <input type="number" id="set-start" min="0" max="23" value="9">
+          <label>Start Time</label>
+          <div class="stepper">
+            <button class="step-btn" id="start-dec">−</button>
+            <span class="step-val" id="start-val">9 AM</span>
+            <button class="step-btn" id="start-inc">+</button>
+          </div>
         </div>
         <div class="settings-row">
-          <label for="set-end">End Hour (0-23)</label>
-          <input type="number" id="set-end" min="0" max="23" value="21">
+          <label>End Time</label>
+          <div class="stepper">
+            <button class="step-btn" id="end-dec">−</button>
+            <span class="step-val" id="end-val">9 PM</span>
+            <button class="step-btn" id="end-inc">+</button>
+          </div>
         </div>
         
         <h2 class="settings-title">Daily Goals</h2>
         <div class="settings-row">
-          <label for="set-water">Water Goal (glasses)</label>
-          <input type="number" id="set-water" min="1" max="50" value="8">
+          <label>Water Goal</label>
+          <div class="stepper">
+            <button class="step-btn" id="water-dec">−</button>
+            <span class="step-val" id="water-val">8</span>
+            <button class="step-btn" id="water-inc">+</button>
+          </div>
         </div>
         <div class="settings-row">
-          <label for="set-steps">Steps Goal (sessions)</label>
-          <input type="number" id="set-steps" min="1" max="24" value="10">
+          <label>Steps Goal</label>
+          <div class="stepper">
+            <button class="step-btn" id="steps-dec">−</button>
+            <span class="step-val" id="steps-val">10</span>
+            <button class="step-btn" id="steps-inc">+</button>
+          </div>
         </div>
 
         <button class="btn btn-save" id="btn-save-settings">Save Settings</button>

@@ -85,11 +85,22 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     ? `💧 ${remainingWater} glass${remainingWater > 1 ? 'es' : ''} left today — keep sipping!`
     : `✅ You've hit your water goal — great job!`;
 
+  const stepMessages = [
+    "You're doing great! Take a quick 100-step walk to recharge. 👟",
+    "Time to stretch those legs! 100 steps can boost your focus instantly.",
+    "A quick walk changes everything. Get your 100 steps in! 🌟",
+    "Keep the momentum going! Stand up and take 100 fresh steps.",
+    "Your body will thank you. 100 steps away from the screen! ✨",
+    "Movement is energy. Take 100 steps and come back stronger! 🚀",
+    "Reset your mind with a quick 100-step stroll around the room."
+  ];
+  const randStepMsg = stepMessages[Math.floor(Math.random() * stepMessages.length)];
+
   chrome.notifications.create(`hydrostep-${Date.now()}`, {
     type: "basic",
     iconUrl: "icons/icon128.png",
     title: "HydroStep Reminder",
-    message: `${waterMsg}\n👟 Time to take 100 steps! (${hoursLeft}h of work left)`,
+    message: `${waterMsg}\n\n${randStepMsg}`,
     priority: 2
   });
 });

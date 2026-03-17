@@ -513,28 +513,53 @@ body {
   color: var(--text-sec);
 }
 
-.settings-row input {
-  width: 60px;
+.stepper {
+  display: flex;
+  align-items: center;
   background: var(--gray-2);
-  border: 1px solid var(--gray-3);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 14px;
-  text-align: center;
-  font-family: inherit;
-  font-weight: 600;
-  outline: none;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.settings-row input:focus {
-  border-color: var(--blue);
+.step-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.step-btn:hover {
+  background: var(--gray-3);
+}
+
+.step-btn:active {
+  background: var(--gray-4);
+}
+
+.step-val {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  width: 56px;
+  text-align: center;
+  pointer-events: none;
 }
 
 .btn-save {
   background: linear-gradient(135deg, var(--blue), var(--blue-light));
   color: #fff;
   margin-top: 10px;
+  padding: 14px 0;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .btn-save:hover {

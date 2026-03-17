@@ -70,6 +70,8 @@ function injectGradient() {
 }
 
 // ── Data Layer ───────────────────────────────
+let tempSettings = { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10 };
+
 async function getSettings() {
   const res = await chrome.storage.local.get('settings');
   return res.settings || { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10 };
@@ -260,12 +262,22 @@ async function renderHistory() {
   }).join('');
 }
 
+function formatAmPm(hour) {
+  if (hour === 0) return '12 AM';
+  if (hour === 12) return '12 PM';
+  return hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+}
+
+function updateStepperUI() {
+  document.getElementById('start-val').textContent = formatAmPm(tempSettings.startHour);
+  document.getElementById('end-val').textContent = formatAmPm(tempSettings.endHour);
+  document.getElementById('water-val').textContent = tempSettings.waterGoal;
+  document.getElementById('steps-val').textContent = tempSettings.stepsGoal;
+}
+
 async function populateSettingsForm() {
-  const s = await getSettings();
-  document.getElementById('set-start').value = s.startHour;
-  document.getElementById('set-end').value = s.endHour;
-  document.getElementById('set-water').value = s.waterGoal;
-  document.getElementById('set-steps').value = s.stepsGoal;
+  tempSettings = await getSettings();
+  updateStepperUI();
 }
 
 // ── Event Handlers ───────────────────────────
@@ -336,18 +348,13 @@ async function onUndoSteps() {
 }
 
 async function onSaveSettings() {
-  const startHour = parseInt(document.getElementById('set-start').value, 10);
-  const endHour = parseInt(document.getElementById('set-end').value, 10);
-  const waterGoal = parseInt(document.getElementById('set-water').value, 10);
-  const stepsGoal = parseInt(document.getElementById('set-steps').value, 10);
-  
-  await saveSettings({ startHour, endHour, waterGoal, stepsGoal });
+  await saveSettings(tempSettings);
   showToast('⚙️ Settings Saved!');
   
   // Refresh UI
   const data = await getTodayData();
-  updateRing(data.glasses, waterGoal);
-  updateSteps(data.stepsCompleted, stepsGoal);
+  updateRing(data.glasses, tempSettings.waterGoal);
+  updateSteps(data.stepsCompleted, tempSettings.stepsGoal);
   await checkAndUpdateStreak();
 }
 
@@ -388,4 +395,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-steps').addEventListener('click', onStepsDone);
   document.getElementById('btn-undo-steps').addEventListener('click', onUndoSteps);
   document.getElementById('btn-save-settings').addEventListener('click', onSaveSettings);
+
+  // Steppers
+  document.getElementById('start-dec').addEventListener('click', () => { if (tempSettings.startHour > 0) { tempSettings.startHour--; updateStepperUI(); }});
+  document.getElementById('start-inc').addEventListener('click', () => { if (tempSettings.startHour < 23) { tempSettings.startHour++; updateStepperUI(); }});
+  
+  document.getElementById('end-dec').addEventListener('click', () => { if (tempSettings.endHour > 0) { tempSettings.endHour--; updateStepperUI(); }});
+  document.getElementById('end-inc').addEventListener('click', () => { if (tempSettings.endHour < 23) { tempSettings.endHour++; updateStepperUI(); }});
+  
+  document.getElementById('water-dec').addEventListener('click', () => { if (tempSettings.waterGoal > 1) { tempSettings.waterGoal--; updateStepperUI(); }});
+  document.getElementById('water-inc').addEventListener('click', () => { if (tempSettings.waterGoal < 50) { tempSettings.waterGoal++; updateStepperUI(); }});
+  
+  document.getElementById('steps-dec').addEventListener('click', () => { if (tempSettings.stepsGoal > 1) { tempSettings.stepsGoal--; updateStepperUI(); }});
+  document.getElementById('steps-inc').addEventListener('click', () => { if (tempSettings.stepsGoal < 24) { tempSettings.stepsGoal++; updateStepperUI(); }});
 });
