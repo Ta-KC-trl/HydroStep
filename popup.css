@@ -265,9 +265,13 @@ body {
   margin-bottom: 12px;
 }
 
-.water-group-presets {
+.water-group {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  flex: 1;
+}
+
+.water-group .btn-drink {
   flex: 1;
 }
 

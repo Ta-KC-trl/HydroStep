@@ -70,14 +70,14 @@ function injectGradient() {
 }
 
 // ── Data Layer ───────────────────────────────
-let tempSettings = { startHour: 9, endHour: 21, waterGoal: 2000, stepsGoal: 10, theme: 'system', notifs: 'sound' };
+let tempSettings = { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10, theme: 'system', notifs: 'sound' };
 
 async function getSettings() {
   const res = await chrome.storage.local.get('settings');
-  let settings = res.settings || { startHour: 9, endHour: 21, waterGoal: 2000, stepsGoal: 10, theme: 'system', notifs: 'sound' };
+  let settings = res.settings || { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10, theme: 'system', notifs: 'sound' };
   if (settings.theme === undefined) settings.theme = 'system';
   if (settings.notifs === undefined) settings.notifs = 'sound';
-  if (settings.waterGoal < 50) settings.waterGoal = settings.waterGoal * 250; // migration
+  if (settings.waterGoal >= 50) settings.waterGoal = Math.round(settings.waterGoal / 250); // reverse migration
   return settings;
 }
 
@@ -101,12 +101,12 @@ async function getTodayData() {
   const result = await chrome.storage.local.get(key);
   let data = result[key];
   if (!data) {
-    data = { waterMl: 0, waterHistory: [], stepsCompleted: [], date: key };
+    data = { glasses: 0, stepsCompleted: [], date: key };
     await chrome.storage.local.set({ [key]: data });
-  } else if (data.glasses !== undefined && data.waterMl === undefined) {
-    data.waterMl = data.glasses * 250;
-    data.waterHistory = Array(data.glasses).fill(250);
-    delete data.glasses;
+  } else if (data.waterMl !== undefined && data.glasses === undefined) {
+    data.glasses = Math.round(data.waterMl / 250);
+    delete data.waterMl;
+    delete data.waterHistory;
     await chrome.storage.local.set({ [key]: data });
   }
   return data;
@@ -141,7 +141,7 @@ async function checkAndUpdateStreak() {
   const today = await getTodayData();
   const streakInfo = await getStreak();
   
-  const waterMet = (today.waterMl || (today.glasses ? today.glasses * 250 : 0)) >= settings.waterGoal;
+  const waterMet = (today.glasses !== undefined ? today.glasses : (today.waterMl ? Math.round(today.waterMl / 250) : 0)) >= settings.waterGoal;
   const stepsMet = today.stepsCompleted.length >= settings.stepsGoal;
   
   if (waterMet && stepsMet) {
@@ -187,16 +187,16 @@ function notifyBackgroundToResetTimer() {
 }
 
 // ── UI Updates ───────────────────────────────
-function updateRing(currentMl, goalMl) {
+function updateRing(glasses, goal) {
   const el = document.getElementById('ring-fill-water');
-  const offset = WATER_RING_CIRCUMFERENCE - (currentMl / goalMl) * WATER_RING_CIRCUMFERENCE;
+  const offset = WATER_RING_CIRCUMFERENCE - (glasses / goal) * WATER_RING_CIRCUMFERENCE;
   el.style.strokeDashoffset = Math.max(offset, 0);
 
-  document.getElementById('water-count').textContent = currentMl;
-  document.getElementById('water-goal').textContent = goalMl;
+  document.getElementById('water-count').textContent = glasses;
+  document.getElementById('water-goal').textContent = goal;
 
   const card = document.querySelector('.ring-card');
-  if (currentMl >= goalMl) {
+  if (glasses >= goal) {
     card.classList.add('complete');
   } else {
     card.classList.remove('complete');
@@ -215,7 +215,7 @@ function updateSteps(stepsArr, goal) {
   document.getElementById('steps-goal').textContent = goal;
 }
 
-async function updateComparison(todayMl) {
+async function updateComparison(todayGlasses) {
   const yesterday = await getYesterdayData();
   const iconEl = document.getElementById('compare-icon');
   const textEl = document.getElementById('compare-text');
@@ -227,21 +227,21 @@ async function updateComparison(todayMl) {
     return;
   }
 
-  let yMl = yesterday.waterMl || (yesterday.glasses ? yesterday.glasses * 250 : 0);
-  const diff = todayMl - yMl;
+  let yGlasses = yesterday.glasses !== undefined ? yesterday.glasses : (yesterday.waterMl ? Math.round(yesterday.waterMl / 250) : 0);
+  const diff = todayGlasses - yGlasses;
 
   if (diff > 0) {
     iconEl.textContent = '↑';
     iconEl.className = 'compare-icon up';
-    textEl.textContent = `${diff}ml more than yesterday — keep it up! 🎉`;
+    textEl.textContent = `${diff} more than yesterday — keep it up! 🎉`;
   } else if (diff < 0) {
     iconEl.textContent = '↓';
     iconEl.className = 'compare-icon down';
-    textEl.textContent = `${Math.abs(diff)}ml fewer than yesterday — drink up! 💪`;
+    textEl.textContent = `${Math.abs(diff)} fewer than yesterday — drink up! 💪`;
   } else {
     iconEl.textContent = '=';
     iconEl.className = 'compare-icon same';
-    textEl.textContent = `Same as yesterday (${yMl}ml) — stay consistent! ✨`;
+    textEl.textContent = `Same as yesterday (${yGlasses}) — stay consistent! ✨`;
   }
 }
 
@@ -279,14 +279,14 @@ async function renderAwards() {
   
   // Calculate lifetime water (up to 365 days max for local storage lookup speeds)
   const records = await getHistory(365);
-  let totalMl = 0;
+  let totalGlasses = 0;
   records.forEach(r => {
-    let histMl = r.waterMl || 0;
-    if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
-    totalMl += histMl;
+    let histGlasses = r.glasses || 0;
+    if (r.waterMl !== undefined && r.glasses === undefined) histGlasses = Math.round(r.waterMl / 250);
+    totalGlasses += histGlasses;
   });
   
-  if (totalMl >= 100000) { // 100 liters = 100,000 ml
+  if (totalGlasses >= 400) { // 400 cups = 100 liters
     document.getElementById('award-water-100').classList.remove('locked');
   }
 }
@@ -309,10 +309,10 @@ async function renderHistory() {
     const label = dateLabel(r._key);
     const stepCount = r.stepsCompleted ? r.stepsCompleted.length : 0;
     
-    let histMl = r.waterMl || 0;
-    if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
+    let histGlasses = r.glasses || 0;
+    if (r.waterMl !== undefined && r.glasses === undefined) histGlasses = Math.round(r.waterMl / 250);
     
-    const waterPct = Math.min((histMl / settings.waterGoal) * 100, 100);
+    const waterPct = Math.min((histGlasses / settings.waterGoal) * 100, 100);
     const stepsPct = Math.min((stepCount / settings.stepsGoal) * 100, 100);
 
     return `
@@ -379,42 +379,34 @@ async function onDrinkWater(ml) {
     return;
   }
   
-  data.waterMl = (data.waterMl || 0) + ml;
-  if (!data.waterHistory) data.waterHistory = [];
-  data.waterHistory.push(ml);
-
+  data.glasses = (data.glasses || 0) + 1;
   await saveTodayData(data);
-  updateRing(data.waterMl, settings.waterGoal);
-  updateComparison(data.waterMl);
+  updateRing(data.glasses, settings.waterGoal);
+  updateComparison(data.glasses);
   
   notifyBackgroundToResetTimer();
   await checkAndUpdateStreak();
 
-  if (data.waterMl >= settings.waterGoal) {
+  if (data.glasses >= settings.waterGoal) {
     showToast('🎉 Goal complete — amazing!');
   } else {
-    showToast(`💧 ${ml}ml logged!`);
+    showToast(`💧 1 cup logged!`);
   }
 }
 
 async function onUndoWater() {
   const settings = await getSettings();
   const data = await getTodayData();
-  if (data.waterMl <= 0) {
+  if (!data.glasses || data.glasses <= 0) {
     showToast('No water to remove!');
     return;
   }
   
-  let removedMl = 250;
-  if (data.waterHistory && data.waterHistory.length > 0) {
-    removedMl = data.waterHistory.pop();
-  }
-  
-  data.waterMl = Math.max(0, data.waterMl - removedMl);
+  data.glasses -= 1;
   await saveTodayData(data);
-  updateRing(data.waterMl, settings.waterGoal);
-  updateComparison(data.waterMl);
-  showToast(`Removed ${removedMl}ml. ${data.waterMl}ml left.`);
+  updateRing(data.glasses, settings.waterGoal);
+  updateComparison(data.glasses);
+  showToast(`Removed 1 cup. ${data.glasses} cups left.`);
 }
 
 async function onStepsDone() {
@@ -487,14 +479,14 @@ async function checkWeeklySummary() {
         let totalWater = 0;
         let totalSteps = 0;
         records.forEach(r => {
-          let histMl = r.waterMl || 0;
-          if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
-          totalWater += histMl;
+          let histGlasses = r.glasses || 0;
+          if (r.waterMl !== undefined && r.glasses === undefined) histGlasses = Math.round(r.waterMl / 250);
+          totalWater += histGlasses;
           totalSteps += (r.stepsCompleted ? r.stepsCompleted.length : 0);
         });
         const avgWater = Math.round(totalWater / records.length);
         
-        document.getElementById('avg-water').textContent = avgWater + 'ml';
+        document.getElementById('avg-water').textContent = avgWater + ' cups';
         document.getElementById('total-steps-week').textContent = totalSteps;
         document.getElementById('weekly-modal').showModal();
         
@@ -519,21 +511,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(settings.theme);
   const data = await getTodayData();
   
-  updateRing(data.waterMl, settings.waterGoal);
+  updateRing(data.glasses, settings.waterGoal);
   updateSteps(data.stepsCompleted, settings.stepsGoal);
-  await updateComparison(data.waterMl);
+  await updateComparison(data.glasses);
   await renderStreak();
 
   // Buttons
-  document.querySelectorAll('.btn-drink').forEach(btn => {
-    btn.addEventListener('click', (e) => onDrinkWater(parseInt(e.target.dataset.ml, 10)));
-  });
+  document.getElementById('btn-drink').addEventListener('click', onDrinkWater);
   
   // Refresh UI early calls to init settings
   (async () => {
     const s = await getSettings();
     const d = await getTodayData();
-    updateRing(d.waterMl, s.waterGoal);
+    updateRing(d.glasses, s.waterGoal);
   })();
 
   document.getElementById('btn-undo').addEventListener('click', onUndoWater);
@@ -552,7 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-calc-goal').addEventListener('click', () => {
     const w = parseFloat(document.getElementById('set-weight').value);
     if (!w || isNaN(w)) return showToast('Please enter a valid weight');
-    tempSettings.waterGoal = Math.round((w * 35) / 50) * 50; // nearest 50ml
+    tempSettings.waterGoal = Math.round((w * 35) / 250); // nearest cup (250ml)
     updateStepperUI();
     showToast('Calculated! Save to apply.');
   });

@@ -75,17 +75,17 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   const settings = await getSettings();
   const key = todayKey();
   const stored = await chrome.storage.local.get(key);
-  const today = stored[key] || { waterMl: 0, stepsCompleted: [] };
+  const today = stored[key] || { glasses: 0, stepsCompleted: [] };
   
-  let currentMl = today.waterMl || 0;
-  if (today.glasses !== undefined && today.waterMl === undefined) currentMl = today.glasses * 250;
+  let currentGlasses = today.glasses || 0;
+  if (today.waterMl !== undefined && today.glasses === undefined) currentGlasses = Math.round(today.waterMl / 250);
 
-  const remainingWater = settings.waterGoal - currentMl;
+  const remainingWater = settings.waterGoal - currentGlasses;
   const hour = new Date().getHours();
   const hoursLeft = settings.endHour - hour;
 
   let waterMsg = remainingWater > 0
-    ? `💧 ${remainingWater}ml left today — keep sipping!`
+    ? `💧 ${remainingWater} cups left today — keep sipping!`
     : `✅ You've hit your water goal — great job!`;
 
   const stepMessages = [
