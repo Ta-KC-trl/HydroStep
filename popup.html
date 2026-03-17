@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HydroStep</title>
+  <link rel="stylesheet" href="popup.css">
+  <!-- Using system font stack for Chrome extension CSP compliance -->
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="header-icon">💧</div>
+        <div class="streak-badge" id="streak-badge" title="Current Daily Streak">
+          🔥 <span id="streak-count">0</span>
+        </div>
+      </div>
+      <h1 class="header-title">HydroStep</h1>
+      <p class="header-sub">Stay hydrated &amp; active</p>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="today" id="tab-today">Today</button>
+      <button class="tab" data-tab="history" id="tab-history">History</button>
+      <button class="tab" data-tab="settings" id="tab-settings">⚙️</button>
+    </nav>
+
+    <!-- ─── Today Panel ──────────────────────── -->
+    <section class="panel active" id="panel-today">
+
+      <!-- Water Ring -->
+      <div class="ring-card">
+        <div class="ring-wrapper">
+          <svg class="ring-svg" viewBox="0 0 160 160">
+            <!-- Outer Ring (Water) -->
+            <circle class="ring-bg ring-outer" cx="80" cy="80" r="68"/>
+            <circle class="ring-fill ring-outer" cx="80" cy="80" r="68" id="ring-fill-water"/>
+            <!-- Inner Ring (Steps) -->
+            <circle class="ring-bg ring-inner" cx="80" cy="80" r="50"/>
+            <circle class="ring-fill ring-inner" cx="80" cy="80" r="50" id="ring-fill-steps"/>
+          </svg>
+          <div class="ring-label dual-label">
+            <div class="stat-water">
+              <span class="stat-icon">💧</span>
+              <span class="stat-count" id="water-count">0</span><span class="stat-total">/<span id="water-goal">8</span></span>
+            </div>
+            <div class="stat-steps">
+              <span class="stat-icon">👟</span>
+              <span class="stat-count" id="steps-done">0</span><span class="stat-total">/<span id="steps-goal">10</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions">
+        <!-- Water Actions -->
+        <div class="water-group">
+          <button class="btn btn-action btn-drink" id="btn-drink">
+            💧 Drink
+          </button>
+          <button class="btn btn-undo" id="btn-undo" title="Remove glass">−</button>
+        </div>
+        
+        <!-- Steps Actions -->
+        <div class="steps-group">
+          <button class="btn btn-action btn-steps" id="btn-steps">
+            👟 Steps
+          </button>
+          <button class="btn btn-undo" id="btn-undo-steps" title="Remove steps">−</button>
+        </div>
+      </div>
+
+
+      <!-- Comparison Badge -->
+      <div class="compare-card" id="compare-card">
+        <div class="compare-icon" id="compare-icon">—</div>
+        <p class="compare-text" id="compare-text">No data from yesterday yet</p>
+      </div>
+    </section>
+
+    <!-- ─── History Panel ────────────────────── -->
+    <section class="panel" id="panel-history">
+      <div class="history-list" id="history-list">
+        <!-- filled by JS -->
+      </div>
+    </section>
+
+    <!-- ─── Settings Panel ───────────────────── -->
+    <section class="panel" id="panel-settings">
+      <div class="settings-card">
+        <h2 class="settings-title">Working Hours</h2>
+        <div class="settings-row">
+          <label for="set-start">Start Hour (0-23)</label>
+          <input type="number" id="set-start" min="0" max="23" value="9">
+        </div>
+        <div class="settings-row">
+          <label for="set-end">End Hour (0-23)</label>
+          <input type="number" id="set-end" min="0" max="23" value="21">
+        </div>
+        
+        <h2 class="settings-title">Daily Goals</h2>
+        <div class="settings-row">
+          <label for="set-water">Water Goal (glasses)</label>
+          <input type="number" id="set-water" min="1" max="50" value="8">
+        </div>
+        <div class="settings-row">
+          <label for="set-steps">Steps Goal (sessions)</label>
+          <input type="number" id="set-steps" min="1" max="24" value="10">
+        </div>
+
+        <button class="btn btn-save" id="btn-save-settings">Save Settings</button>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
