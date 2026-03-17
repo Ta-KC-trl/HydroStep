@@ -75,14 +75,17 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   const settings = await getSettings();
   const key = todayKey();
   const stored = await chrome.storage.local.get(key);
-  const today = stored[key] || { glasses: 0, stepsCompleted: [] };
+  const today = stored[key] || { waterMl: 0, stepsCompleted: [] };
+  
+  let currentMl = today.waterMl || 0;
+  if (today.glasses !== undefined && today.waterMl === undefined) currentMl = today.glasses * 250;
 
-  const remainingWater = settings.waterGoal - today.glasses;
+  const remainingWater = settings.waterGoal - currentMl;
   const hour = new Date().getHours();
   const hoursLeft = settings.endHour - hour;
 
   let waterMsg = remainingWater > 0
-    ? `💧 ${remainingWater} glass${remainingWater > 1 ? 'es' : ''} left today — keep sipping!`
+    ? `💧 ${remainingWater}ml left today — keep sipping!`
     : `✅ You've hit your water goal — great job!`;
 
   const stepMessages = [
@@ -96,11 +99,23 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   ];
   const randStepMsg = stepMessages[Math.floor(Math.random() * stepMessages.length)];
 
-  chrome.notifications.create(`hydrostep-${Date.now()}`, {
+  if (settings.notifs === 'badge') {
+    chrome.action.setBadgeText({ text: "!" });
+    chrome.action.setBadgeBackgroundColor({ color: "#FF9F0A" });
+    return;
+  }
+
+  const notifOptions = {
     type: "basic",
     iconUrl: "icons/icon128.png",
     title: "HydroStep Reminder",
     message: `${waterMsg}\n\n${randStepMsg}`,
     priority: 2
-  });
+  };
+
+  if (settings.notifs === 'silent') {
+    notifOptions.silent = true;
+  }
+
+  chrome.notifications.create(`hydrostep-${Date.now()}`, notifOptions);
 });

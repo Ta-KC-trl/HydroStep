@@ -70,11 +70,15 @@ function injectGradient() {
 }
 
 // ── Data Layer ───────────────────────────────
-let tempSettings = { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10 };
+let tempSettings = { startHour: 9, endHour: 21, waterGoal: 2000, stepsGoal: 10, theme: 'system', notifs: 'sound' };
 
 async function getSettings() {
   const res = await chrome.storage.local.get('settings');
-  return res.settings || { startHour: 9, endHour: 21, waterGoal: 8, stepsGoal: 10 };
+  let settings = res.settings || { startHour: 9, endHour: 21, waterGoal: 2000, stepsGoal: 10, theme: 'system', notifs: 'sound' };
+  if (settings.theme === undefined) settings.theme = 'system';
+  if (settings.notifs === undefined) settings.notifs = 'sound';
+  if (settings.waterGoal < 50) settings.waterGoal = settings.waterGoal * 250; // migration
+  return settings;
 }
 
 async function saveSettings(settings) {
@@ -82,23 +86,30 @@ async function saveSettings(settings) {
 }
 
 async function getStreak() {
-  const res = await chrome.storage.local.get(['currentStreak', 'lastGoalDate']);
-  return { streak: res.currentStreak || 0, lastDate: res.lastGoalDate || null };
+  const res = await chrome.storage.local.get(['currentStreak', 'lastGoalDate', 'graceWeekKey']);
+  return { streak: res.currentStreak || 0, lastDate: res.lastGoalDate || null, graceWeek: res.graceWeekKey || null };
 }
 
-async function setStreak(streak, date) {
-  await chrome.storage.local.set({ currentStreak: streak, lastGoalDate: date });
+async function setStreak(streak, date, graceWeekStr) {
+  const obj = { currentStreak: streak, lastGoalDate: date };
+  if (graceWeekStr !== undefined) obj.graceWeekKey = graceWeekStr;
+  await chrome.storage.local.set(obj);
 }
 
 async function getTodayData() {
   const key = todayKey();
   const result = await chrome.storage.local.get(key);
-  if (!result[key]) {
-    const init = { glasses: 0, stepsCompleted: [], date: key };
-    await chrome.storage.local.set({ [key]: init });
-    return init;
+  let data = result[key];
+  if (!data) {
+    data = { waterMl: 0, waterHistory: [], stepsCompleted: [], date: key };
+    await chrome.storage.local.set({ [key]: data });
+  } else if (data.glasses !== undefined && data.waterMl === undefined) {
+    data.waterMl = data.glasses * 250;
+    data.waterHistory = Array(data.glasses).fill(250);
+    delete data.glasses;
+    await chrome.storage.local.set({ [key]: data });
   }
-  return result[key];
+  return data;
 }
 
 async function saveTodayData(data) {
@@ -130,22 +141,45 @@ async function checkAndUpdateStreak() {
   const today = await getTodayData();
   const streakInfo = await getStreak();
   
-  const waterMet = today.glasses >= settings.waterGoal;
+  const waterMet = (today.waterMl || (today.glasses ? today.glasses * 250 : 0)) >= settings.waterGoal;
   const stepsMet = today.stepsCompleted.length >= settings.stepsGoal;
   
   if (waterMet && stepsMet) {
     const tKey = todayKey();
     if (streakInfo.lastDate !== tKey) {
-      // Met goals for the first time today
-      if (streakInfo.lastDate === yesterdayKey()) {
-        await setStreak(streakInfo.streak + 1, tKey);
+      
+      const yesterdayD = new Date(); yesterdayD.setDate(yesterdayD.getDate() - 1);
+      const yesterdayK = `${yesterdayD.getFullYear()}-${String(yesterdayD.getMonth()+1).padStart(2,'0')}-${String(yesterdayD.getDate()).padStart(2,'0')}`;
+      
+      const dayBeforeD = new Date(); dayBeforeD.setDate(dayBeforeD.getDate() - 2);
+      const dayBeforeK = `${dayBeforeD.getFullYear()}-${String(dayBeforeD.getMonth()+1).padStart(2,'0')}-${String(dayBeforeD.getDate()).padStart(2,'0')}`;
+      
+      if (streakInfo.lastDate === yesterdayK) {
+        await setStreak(streakInfo.streak + 1, tKey, streakInfo.graceWeek);
+        showToast('🔥 Daily goals met! Streak updated!');
+      } else if (streakInfo.lastDate === dayBeforeK) {
+        // Evaluate grace logic
+        const currentWeekKey = getWeekKey();
+        if (streakInfo.graceWeek !== currentWeekKey) {
+          await setStreak(streakInfo.streak + 1, tKey, currentWeekKey);
+          showToast('🛡️ Streak saved! Grace day applied!');
+        } else {
+          await setStreak(1, tKey, null);
+          showToast('🔥 Goals met! Streak initialized.');
+        }
       } else {
-        await setStreak(1, tKey);
+        await setStreak(1, tKey, null);
+        showToast('🔥 Goals met! Streak initialized.');
       }
-      showToast('🔥 Daily goals met! Streak updated!');
       renderStreak(); // update UI
     }
   }
+}
+
+function getWeekKey() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay() + 1); // Get Monday of this week
+  return `week-${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
 function notifyBackgroundToResetTimer() {
@@ -153,16 +187,16 @@ function notifyBackgroundToResetTimer() {
 }
 
 // ── UI Updates ───────────────────────────────
-function updateRing(glasses, goal) {
+function updateRing(currentMl, goalMl) {
   const el = document.getElementById('ring-fill-water');
-  const offset = WATER_RING_CIRCUMFERENCE - (glasses / goal) * WATER_RING_CIRCUMFERENCE;
+  const offset = WATER_RING_CIRCUMFERENCE - (currentMl / goalMl) * WATER_RING_CIRCUMFERENCE;
   el.style.strokeDashoffset = Math.max(offset, 0);
 
-  document.getElementById('water-count').textContent = glasses;
-  document.getElementById('water-goal').textContent = goal;
+  document.getElementById('water-count').textContent = currentMl;
+  document.getElementById('water-goal').textContent = goalMl;
 
   const card = document.querySelector('.ring-card');
-  if (glasses >= goal) {
+  if (currentMl >= goalMl) {
     card.classList.add('complete');
   } else {
     card.classList.remove('complete');
@@ -181,7 +215,7 @@ function updateSteps(stepsArr, goal) {
   document.getElementById('steps-goal').textContent = goal;
 }
 
-async function updateComparison(todayGlasses) {
+async function updateComparison(todayMl) {
   const yesterday = await getYesterdayData();
   const iconEl = document.getElementById('compare-icon');
   const textEl = document.getElementById('compare-text');
@@ -193,31 +227,68 @@ async function updateComparison(todayGlasses) {
     return;
   }
 
-  const diff = todayGlasses - yesterday.glasses;
+  let yMl = yesterday.waterMl || (yesterday.glasses ? yesterday.glasses * 250 : 0);
+  const diff = todayMl - yMl;
 
   if (diff > 0) {
     iconEl.textContent = '↑';
     iconEl.className = 'compare-icon up';
-    textEl.textContent = `${diff} more than yesterday — keep it up! 🎉`;
+    textEl.textContent = `${diff}ml more than yesterday — keep it up! 🎉`;
   } else if (diff < 0) {
     iconEl.textContent = '↓';
     iconEl.className = 'compare-icon down';
-    textEl.textContent = `${Math.abs(diff)} fewer than yesterday — drink up! 💪`;
+    textEl.textContent = `${Math.abs(diff)}ml fewer than yesterday — drink up! 💪`;
   } else {
     iconEl.textContent = '=';
     iconEl.className = 'compare-icon same';
-    textEl.textContent = `Same as yesterday (${yesterday.glasses}) — stay consistent! ✨`;
+    textEl.textContent = `Same as yesterday (${yMl}ml) — stay consistent! ✨`;
   }
 }
 
 async function renderStreak() {
   const streakInfo = await getStreak();
-  // If streak was lost (lastDate is older than yesterday and not today), visual streak is 0
+  // Valid states for keeping visual streak: tKey, yesterdayK, or (dayBeforeK IF grace week not used)
   let displayStreak = streakInfo.streak;
-  if (streakInfo.lastDate && streakInfo.lastDate !== todayKey() && streakInfo.lastDate !== yesterdayKey()) {
-    displayStreak = 0;
+  const tKey = todayKey();
+  const yesterdayD = new Date(); yesterdayD.setDate(yesterdayD.getDate() - 1);
+  const yesterdayK = `${yesterdayD.getFullYear()}-${String(yesterdayD.getMonth()+1).padStart(2,'0')}-${String(yesterdayD.getDate()).padStart(2,'0')}`;
+  
+  const dayBeforeD = new Date(); dayBeforeD.setDate(dayBeforeD.getDate() - 2);
+  const dayBeforeK = `${dayBeforeD.getFullYear()}-${String(dayBeforeD.getMonth()+1).padStart(2,'0')}-${String(dayBeforeD.getDate()).padStart(2,'0')}`;
+
+  const currentW = getWeekKey();
+
+  if (streakInfo.lastDate && streakInfo.lastDate !== tKey && streakInfo.lastDate !== yesterdayK) {
+    if (streakInfo.lastDate === dayBeforeK && streakInfo.graceWeek !== currentW) {
+      // The streak visually survives today because they CAN earn it with a grace day.
+    } else {
+      displayStreak = 0;
+    }
   }
   document.getElementById('streak-count').textContent = displayStreak;
+}
+
+async function renderAwards() {
+  const streakInfo = await getStreak();
+  if (streakInfo.streak >= 7) {
+    document.getElementById('award-streak-7').classList.remove('locked');
+  }
+  if (streakInfo.streak >= 30) {
+    document.getElementById('award-streak-30').classList.remove('locked');
+  }
+  
+  // Calculate lifetime water (up to 365 days max for local storage lookup speeds)
+  const records = await getHistory(365);
+  let totalMl = 0;
+  records.forEach(r => {
+    let histMl = r.waterMl || 0;
+    if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
+    totalMl += histMl;
+  });
+  
+  if (totalMl >= 100000) { // 100 liters = 100,000 ml
+    document.getElementById('award-water-100').classList.remove('locked');
+  }
 }
 
 async function renderHistory() {
@@ -237,7 +308,11 @@ async function renderHistory() {
   list.innerHTML = records.map(r => {
     const label = dateLabel(r._key);
     const stepCount = r.stepsCompleted ? r.stepsCompleted.length : 0;
-    const waterPct = Math.min((r.glasses / settings.waterGoal) * 100, 100);
+    
+    let histMl = r.waterMl || 0;
+    if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
+    
+    const waterPct = Math.min((histMl / settings.waterGoal) * 100, 100);
     const stepsPct = Math.min((stepCount / settings.stepsGoal) * 100, 100);
 
     return `
@@ -250,7 +325,7 @@ async function renderHistory() {
         <div class="history-stat">
           <span class="history-stat-icon">💧</span>
           <div class="history-bar-wrap"><div class="history-bar water" style="width:${waterPct}%"></div></div>
-          <span class="history-value">${r.glasses}/${settings.waterGoal}</span>
+          <span class="history-value">${histMl}/${settings.waterGoal}</span>
         </div>
         <div class="history-stat">
           <span class="history-stat-icon">👟</span>
@@ -268,11 +343,25 @@ function formatAmPm(hour) {
   return hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
 }
 
+function applyTheme(themeVal) {
+  let isLight = false;
+  if (themeVal === 'light') {
+    isLight = true;
+  } else if (themeVal === 'system') {
+    isLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  }
+  document.body.classList.toggle('light-theme', isLight);
+}
+
 function updateStepperUI() {
   document.getElementById('start-val').textContent = formatAmPm(tempSettings.startHour);
   document.getElementById('end-val').textContent = formatAmPm(tempSettings.endHour);
   document.getElementById('water-val').textContent = tempSettings.waterGoal;
   document.getElementById('steps-val').textContent = tempSettings.stepsGoal;
+  document.getElementById('set-theme').value = tempSettings.theme;
+  document.getElementById('set-notifs').value = tempSettings.notifs;
+  
+  applyTheme(tempSettings.theme);
 }
 
 async function populateSettingsForm() {
@@ -281,42 +370,51 @@ async function populateSettingsForm() {
 }
 
 // ── Event Handlers ───────────────────────────
-async function onDrinkWater() {
+async function onDrinkWater(ml) {
   const settings = await getSettings();
   const data = await getTodayData();
   
-  if (data.glasses >= settings.waterGoal) {
-    showToast(`🎉 You already hit ${settings.waterGoal} glasses!`);
+  if (data.waterMl >= settings.waterGoal) {
+    showToast(`🎉 You already hit ${settings.waterGoal}ml!`);
     return;
   }
   
-  data.glasses += 1;
+  data.waterMl = (data.waterMl || 0) + ml;
+  if (!data.waterHistory) data.waterHistory = [];
+  data.waterHistory.push(ml);
+
   await saveTodayData(data);
-  updateRing(data.glasses, settings.waterGoal);
-  updateComparison(data.glasses);
+  updateRing(data.waterMl, settings.waterGoal);
+  updateComparison(data.waterMl);
   
   notifyBackgroundToResetTimer();
   await checkAndUpdateStreak();
 
-  if (data.glasses >= settings.waterGoal) {
+  if (data.waterMl >= settings.waterGoal) {
     showToast('🎉 Goal complete — amazing!');
   } else {
-    showToast(`💧 Glass ${data.glasses} logged!`);
+    showToast(`💧 ${ml}ml logged!`);
   }
 }
 
 async function onUndoWater() {
   const settings = await getSettings();
   const data = await getTodayData();
-  if (data.glasses <= 0) {
-    showToast('No glasses to remove!');
+  if (data.waterMl <= 0) {
+    showToast('No water to remove!');
     return;
   }
-  data.glasses -= 1;
+  
+  let removedMl = 250;
+  if (data.waterHistory && data.waterHistory.length > 0) {
+    removedMl = data.waterHistory.pop();
+  }
+  
+  data.waterMl = Math.max(0, data.waterMl - removedMl);
   await saveTodayData(data);
-  updateRing(data.glasses, settings.waterGoal);
-  updateComparison(data.glasses);
-  showToast(`Removed a glass. ${data.glasses} left.`);
+  updateRing(data.waterMl, settings.waterGoal);
+  updateComparison(data.waterMl);
+  showToast(`Removed ${removedMl}ml. ${data.waterMl}ml left.`);
 }
 
 async function onStepsDone() {
@@ -353,7 +451,7 @@ async function onSaveSettings() {
   
   // Refresh UI
   const data = await getTodayData();
-  updateRing(data.glasses, tempSettings.waterGoal);
+  updateRing(data.waterMl, tempSettings.waterGoal);
   updateSteps(data.stepsCompleted, tempSettings.stepsGoal);
   await checkAndUpdateStreak();
 }
@@ -371,30 +469,93 @@ function setupTabs() {
         renderHistory();
       } else if (tab.dataset.tab === 'settings') {
         populateSettingsForm();
+      } else if (tab.dataset.tab === 'awards') {
+        renderAwards();
       }
     });
   });
 }
 
+async function checkWeeklySummary() {
+  const d = new Date();
+  if (d.getDay() === 1) { // 1 = Monday
+    const key = `week-${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const res = await chrome.storage.local.get(key);
+    if (!res[key]) {
+      const records = await getHistory(7);
+      if (records.length > 0) {
+        let totalWater = 0;
+        let totalSteps = 0;
+        records.forEach(r => {
+          let histMl = r.waterMl || 0;
+          if (r.glasses !== undefined && r.waterMl === undefined) histMl = r.glasses * 250;
+          totalWater += histMl;
+          totalSteps += (r.stepsCompleted ? r.stepsCompleted.length : 0);
+        });
+        const avgWater = Math.round(totalWater / records.length);
+        
+        document.getElementById('avg-water').textContent = avgWater + 'ml';
+        document.getElementById('total-steps-week').textContent = totalSteps;
+        document.getElementById('weekly-modal').showModal();
+        
+        document.getElementById('btn-close-summary').onclick = () => {
+          document.getElementById('weekly-modal').close();
+          chrome.storage.local.set({ [key]: true });
+        };
+      } else {
+        chrome.storage.local.set({ [key]: true });
+      }
+    }
+  }
+}
+
 // ── Init ─────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  chrome.action.setBadgeText({ text: '' });
   injectGradient();
   setupTabs();
 
   const settings = await getSettings();
+  applyTheme(settings.theme);
   const data = await getTodayData();
   
-  updateRing(data.glasses, settings.waterGoal);
+  updateRing(data.waterMl, settings.waterGoal);
   updateSteps(data.stepsCompleted, settings.stepsGoal);
-  await updateComparison(data.glasses);
+  await updateComparison(data.waterMl);
   await renderStreak();
 
   // Buttons
-  document.getElementById('btn-drink').addEventListener('click', onDrinkWater);
+  document.querySelectorAll('.btn-drink').forEach(btn => {
+    btn.addEventListener('click', (e) => onDrinkWater(parseInt(e.target.dataset.ml, 10)));
+  });
+  
+  // Refresh UI early calls to init settings
+  (async () => {
+    const s = await getSettings();
+    const d = await getTodayData();
+    updateRing(d.waterMl, s.waterGoal);
+  })();
+
   document.getElementById('btn-undo').addEventListener('click', onUndoWater);
   document.getElementById('btn-steps').addEventListener('click', onStepsDone);
   document.getElementById('btn-undo-steps').addEventListener('click', onUndoSteps);
   document.getElementById('btn-save-settings').addEventListener('click', onSaveSettings);
+
+  // Advanced Settings
+  document.getElementById('set-theme').addEventListener('change', (e) => {
+    tempSettings.theme = e.target.value;
+    applyTheme(tempSettings.theme);
+  });
+  document.getElementById('set-notifs').addEventListener('change', (e) => {
+    tempSettings.notifs = e.target.value;
+  });
+  document.getElementById('btn-calc-goal').addEventListener('click', () => {
+    const w = parseFloat(document.getElementById('set-weight').value);
+    if (!w || isNaN(w)) return showToast('Please enter a valid weight');
+    tempSettings.waterGoal = Math.round((w * 35) / 50) * 50; // nearest 50ml
+    updateStepperUI();
+    showToast('Calculated! Save to apply.');
+  });
 
   // Steppers
   document.getElementById('start-dec').addEventListener('click', () => { if (tempSettings.startHour > 0) { tempSettings.startHour--; updateStepperUI(); }});
@@ -403,9 +564,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('end-dec').addEventListener('click', () => { if (tempSettings.endHour > 0) { tempSettings.endHour--; updateStepperUI(); }});
   document.getElementById('end-inc').addEventListener('click', () => { if (tempSettings.endHour < 23) { tempSettings.endHour++; updateStepperUI(); }});
   
-  document.getElementById('water-dec').addEventListener('click', () => { if (tempSettings.waterGoal > 1) { tempSettings.waterGoal--; updateStepperUI(); }});
-  document.getElementById('water-inc').addEventListener('click', () => { if (tempSettings.waterGoal < 50) { tempSettings.waterGoal++; updateStepperUI(); }});
+  document.getElementById('water-dec').addEventListener('click', () => { if (tempSettings.waterGoal > 100) { tempSettings.waterGoal -= 100; updateStepperUI(); }});
+  document.getElementById('water-inc').addEventListener('click', () => { if (tempSettings.waterGoal < 10000) { tempSettings.waterGoal += 100; updateStepperUI(); }});
   
   document.getElementById('steps-dec').addEventListener('click', () => { if (tempSettings.stepsGoal > 1) { tempSettings.stepsGoal--; updateStepperUI(); }});
   document.getElementById('steps-inc').addEventListener('click', () => { if (tempSettings.stepsGoal < 24) { tempSettings.stepsGoal++; updateStepperUI(); }});
+
+  await checkWeeklySummary();
 });

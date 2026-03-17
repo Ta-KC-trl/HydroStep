@@ -26,6 +26,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="today" id="tab-today">Today</button>
       <button class="tab" data-tab="history" id="tab-history">History</button>
+      <button class="tab" data-tab="awards" id="tab-awards">Awards</button>
       <button class="tab" data-tab="settings" id="tab-settings">⚙️</button>
     </nav>
 
@@ -46,7 +47,7 @@
           <div class="ring-label dual-label">
             <div class="stat-water">
               <span class="stat-icon">💧</span>
-              <span class="stat-count" id="water-count">0</span><span class="stat-total">/<span id="water-goal">8</span></span>
+              <span class="stat-count" id="water-count">0</span><span class="stat-total">/<span id="water-goal">2000</span>ml</span>
             </div>
             <div class="stat-steps">
               <span class="stat-icon">👟</span>
@@ -59,11 +60,11 @@
       <!-- Action Buttons -->
       <div class="actions">
         <!-- Water Actions -->
-        <div class="water-group">
-          <button class="btn btn-action btn-drink" id="btn-drink">
-            💧 Drink
-          </button>
-          <button class="btn btn-undo" id="btn-undo" title="Remove glass">−</button>
+        <div class="water-group-presets">
+          <button class="btn btn-action btn-drink" data-ml="250">250ml</button>
+          <button class="btn btn-action btn-drink" data-ml="500">500ml</button>
+          <button class="btn btn-action btn-drink" data-ml="1000">1L</button>
+          <button class="btn btn-undo" id="btn-undo" title="Remove last drink">−</button>
         </div>
         
         <!-- Steps Actions -->
@@ -90,6 +91,27 @@
       </div>
     </section>
 
+    <!-- ─── Awards Panel ─────────────────────── -->
+    <section class="panel" id="panel-awards">
+      <div class="awards-grid">
+        <div class="award-card locked" id="award-streak-7">
+          <div class="award-icon">🔥</div>
+          <div class="award-title">7-Day Streak</div>
+          <div class="award-desc">Unstoppable</div>
+        </div>
+        <div class="award-card locked" id="award-streak-30">
+          <div class="award-icon">💎</div>
+          <div class="award-title">30-Day Streak</div>
+          <div class="award-desc">Diamond Habit</div>
+        </div>
+        <div class="award-card locked" id="award-water-100">
+          <div class="award-icon">🏆</div>
+          <div class="award-title">100 Liters</div>
+          <div class="award-desc">Hydration Master</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ─── Settings Panel ───────────────────── -->
     <section class="panel" id="panel-settings">
       <div class="settings-card">
@@ -113,10 +135,10 @@
         
         <h2 class="settings-title">Daily Goals</h2>
         <div class="settings-row">
-          <label>Water Goal</label>
+          <label>Water Goal (ml)</label>
           <div class="stepper">
             <button class="step-btn" id="water-dec">−</button>
-            <span class="step-val" id="water-val">8</span>
+            <span class="step-val" id="water-val">2000</span>
             <button class="step-btn" id="water-inc">+</button>
           </div>
         </div>
@@ -128,12 +150,58 @@
             <button class="step-btn" id="steps-inc">+</button>
           </div>
         </div>
+        
+        <h2 class="settings-title">Preferences</h2>
+        <div class="settings-row">
+          <label>Theme</label>
+          <select id="set-theme" class="settings-select">
+            <option value="system">System Default</option>
+            <option value="dark">Dark Mode</option>
+            <option value="light">Light Mode</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Alert Style</label>
+          <select id="set-notifs" class="settings-select">
+            <option value="sound">Standard (Sound)</option>
+            <option value="silent">Silent Popups</option>
+            <option value="badge">Badge Only (No popup)</option>
+          </select>
+        </div>
+
+        <h2 class="settings-title">Smart Calculate</h2>
+        <div class="settings-row align-start">
+          <label>Body Weight (kg)</label>
+          <div class="calc-group">
+            <input type="number" id="set-weight" placeholder="e.g. 70" class="settings-input" />
+            <button class="btn btn-action" id="btn-calc-goal">Calculate ML Goal</button>
+          </div>
+        </div>
 
         <button class="btn btn-save" id="btn-save-settings">Save Settings</button>
       </div>
     </section>
 
   </div>
+
+    <!-- ─── Weekly Summary Modal ─────────────────── -->
+    <dialog id="weekly-modal" class="modal">
+      <div class="modal-content">
+        <h2>Weekly Recap 🏆</h2>
+        <p class="modal-subtitle">Here is your performance for the last 7 days:</p>
+        <div class="summary-stats">
+          <div class="stat-box">
+            <span>💧 Average Water</span>
+            <strong id="avg-water">0ml</strong>
+          </div>
+          <div class="stat-box">
+            <span>👟 Total Steps Sessions</span>
+            <strong id="total-steps-week">0</strong>
+          </div>
+        </div>
+        <button class="btn btn-save" id="btn-close-summary">Awesome!</button>
+      </div>
+    </dialog>
 
   <script src="popup.js"></script>
 </body>
