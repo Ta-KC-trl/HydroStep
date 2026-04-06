@@ -3,206 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HydroStep</title>
-  <link rel="stylesheet" href="popup.css">
-  <!-- Using system font stack for Chrome extension CSP compliance -->
+  <title>TAKCTRL - Hydro step</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
-
-    <!-- Header -->
     <header class="header">
       <div class="header-top">
-        <div class="header-icon">💧</div>
-        <div class="streak-badge" id="streak-badge" title="Current Daily Streak">
+        <div class="logo">
+          <img src="takctrl_logo.png" alt="TAKCTRL" class="logo-img">
+        </div>
+        <div class="streak-badge" id="streak-badge">
           🔥 <span id="streak-count">0</span>
         </div>
       </div>
-      <h1 class="header-title">HydroStep</h1>
-      <p class="header-sub">Stay hydrated &amp; active</p>
+      <p class="header-sub">Mini Health AI for Developers</p>
     </header>
 
-    <!-- Tabs -->
     <nav class="tabs">
-      <button class="tab active" data-tab="today" id="tab-today">Today</button>
-      <button class="tab" data-tab="history" id="tab-history">History</button>
-      <button class="tab" data-tab="awards" id="tab-awards">Awards</button>
-      <button class="tab" data-tab="settings" id="tab-settings">⚙️</button>
+      <button class="tab active" data-tab="today">Dashboard</button>
+      <button class="tab" data-tab="settings">Settings</button>
     </nav>
 
-    <!-- ─── Today Panel ──────────────────────── -->
-    <section class="panel active" id="panel-today">
-
-      <!-- Water Ring -->
-      <div class="ring-card">
-        <div class="ring-wrapper">
-          <svg class="ring-svg" viewBox="0 0 160 160">
-            <!-- Outer Ring (Water) -->
-            <circle class="ring-bg ring-outer" cx="80" cy="80" r="68"/>
-            <circle class="ring-fill ring-outer" cx="80" cy="80" r="68" id="ring-fill-water"/>
-            <!-- Inner Ring (Steps) -->
-            <circle class="ring-bg ring-inner" cx="80" cy="80" r="50"/>
-            <circle class="ring-fill ring-inner" cx="80" cy="80" r="50" id="ring-fill-steps"/>
-          </svg>
-          <div class="ring-label dual-label">
-            <div class="stat-water">
-              <span class="stat-icon">💧</span>
-              <span class="stat-count" id="water-count">0</span><span class="stat-total">/<span id="water-goal">8</span></span>
+    <main>
+      <section class="panel active" id="panel-today">
+        <div class="ring-card">
+          <div class="stats-grid">
+            <div class="stat-item water">
+              <div class="stat-circle">
+                <svg viewBox="0 0 100 100">
+                  <circle class="bg" cx="50" cy="50" r="45"></circle>
+                  <circle class="progress" id="water-progress" cx="50" cy="50" r="45"></circle>
+                </svg>
+                <div class="stat-content">
+                  <span class="stat-label">Water</span>
+                  <span class="stat-value"><span id="water-count">0</span>/<span id="water-goal">8</span></span>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="btn-drink">Add Cup</button>
             </div>
-            <div class="stat-steps">
-              <span class="stat-icon">👟</span>
-              <span class="stat-count" id="steps-done">0</span><span class="stat-total">/<span id="steps-goal">10</span></span>
+            
+            <div class="stat-item walk">
+              <div class="stat-circle">
+                <svg viewBox="0 0 100 100">
+                  <circle class="bg" cx="50" cy="50" r="45"></circle>
+                  <circle class="progress" id="walk-progress" cx="50" cy="50" r="45"></circle>
+                </svg>
+                <div class="stat-content">
+                  <span class="stat-label">Walk</span>
+                  <span class="stat-value"><span id="walk-done">0</span>/<span id="walk-goal">10</span></span>
+                </div>
+              </div>
+              <button class="btn btn-secondary" id="btn-walk">Log Walk</button>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action Buttons -->
-      <div class="actions">
-        <!-- Water Actions -->
-        <div class="water-group">
-          <button class="btn btn-action btn-drink" id="btn-drink">
-            💧 Drink
-          </button>
-          <button class="btn btn-undo" id="btn-undo" title="Remove last drink">−</button>
+        <div class="productivity-card">
+          <p id="health-tip">"Hydration is the ultimate productivity hack."</p>
         </div>
-        
-        <!-- Steps Actions -->
-        <div class="steps-group">
-          <button class="btn btn-action btn-steps" id="btn-steps">
-            👟 Steps
-          </button>
-          <button class="btn btn-undo" id="btn-undo-steps" title="Remove steps">−</button>
-        </div>
-      </div>
+      </section>
 
-
-      <!-- Comparison Badge -->
-      <div class="compare-card" id="compare-card">
-        <div class="compare-icon" id="compare-icon">—</div>
-        <p class="compare-text" id="compare-text">No data from yesterday yet</p>
-      </div>
-    </section>
-
-    <!-- ─── History Panel ────────────────────── -->
-    <section class="panel" id="panel-history">
-      <div class="history-list" id="history-list">
-        <!-- filled by JS -->
-      </div>
-    </section>
-
-    <!-- ─── Awards Panel ─────────────────────── -->
-    <section class="panel" id="panel-awards">
-      <div class="awards-grid">
-        <div class="award-card locked" id="award-streak-7">
-          <div class="award-icon">🔥</div>
-          <div class="award-title">7-Day Streak</div>
-          <div class="award-desc">Unstoppable</div>
-        </div>
-        <div class="award-card locked" id="award-streak-30">
-          <div class="award-icon">💎</div>
-          <div class="award-title">30-Day Streak</div>
-          <div class="award-desc">Diamond Habit</div>
-        </div>
-        <div class="award-card locked" id="award-water-100">
-          <div class="award-icon">🏆</div>
-          <div class="award-title">100 Liters</div>
-          <div class="award-desc">Hydration Master</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Settings Panel ───────────────────── -->
-    <section class="panel" id="panel-settings">
-      <div class="settings-card">
-        <h2 class="settings-title">Working Hours</h2>
-        <div class="settings-row">
-          <label>Start Time</label>
-          <div class="stepper">
-            <button class="step-btn" id="start-dec">−</button>
-            <span class="step-val" id="start-val">9 AM</span>
-            <button class="step-btn" id="start-inc">+</button>
+      <section class="panel" id="panel-settings">
+        <div class="settings-group">
+          <h3>Notification Intervals</h3>
+          <div class="settings-row">
+            <label for="waterTime">Water Reminder (mins)</label>
+            <input type="number" id="waterTime" value="30" min="1" max="1440">
           </div>
-        </div>
-        <div class="settings-row">
-          <label>End Time</label>
-          <div class="stepper">
-            <button class="step-btn" id="end-dec">−</button>
-            <span class="step-val" id="end-val">9 PM</span>
-            <button class="step-btn" id="end-inc">+</button>
-          </div>
-        </div>
-        
-        <h2 class="settings-title">Daily Goals</h2>
-        <div class="settings-row">
-          <label>Water Goal (cups)</label>
-          <div class="stepper">
-            <button class="step-btn" id="water-dec">−</button>
-            <span class="step-val" id="water-val">8</span>
-            <button class="step-btn" id="water-inc">+</button>
-          </div>
-        </div>
-        <div class="settings-row">
-          <label>Steps Goal</label>
-          <div class="stepper">
-            <button class="step-btn" id="steps-dec">−</button>
-            <span class="step-val" id="steps-val">10</span>
-            <button class="step-btn" id="steps-inc">+</button>
-          </div>
-        </div>
-        
-        <h2 class="settings-title">Preferences</h2>
-        <div class="settings-row">
-          <label>Theme</label>
-          <select id="set-theme" class="settings-select">
-            <option value="system">System Default</option>
-            <option value="dark">Dark Mode</option>
-            <option value="light">Light Mode</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>Alert Style</label>
-          <select id="set-notifs" class="settings-select">
-            <option value="sound">Standard (Sound)</option>
-            <option value="silent">Silent Popups</option>
-            <option value="badge">Badge Only (No popup)</option>
-          </select>
-        </div>
-
-        <h2 class="settings-title">Smart Calculate</h2>
-        <div class="settings-row align-start">
-          <label>Body Weight (kg)</label>
-          <div class="calc-group">
-            <input type="number" id="set-weight" placeholder="e.g. 70" class="settings-input" />
-            <button class="btn btn-action" id="btn-calc-goal">Calculate Cups</button>
+          <div class="settings-row">
+            <label for="walkTime">Walk Reminder (mins)</label>
+            <input type="number" id="walkTime" value="60" min="1" max="1440">
           </div>
         </div>
 
-        <button class="btn btn-save" id="btn-save-settings">Save Settings</button>
-      </div>
-    </section>
+        <div class="settings-group">
+          <h3>Daily Goals</h3>
+          <div class="settings-row">
+            <label for="waterGoal">Water Goal (cups)</label>
+            <input type="number" id="waterGoal" value="8" min="1">
+          </div>
+          <div class="settings-row">
+            <label for="walkGoal">Walk Goal (times)</label>
+            <input type="number" id="walkGoal" value="10" min="1">
+          </div>
+        </div>
 
+        <button class="btn btn-save" id="save">Save Settings</button>
+      </section>
+    </main>
   </div>
-
-    <!-- ─── Weekly Summary Modal ─────────────────── -->
-    <dialog id="weekly-modal" class="modal">
-      <div class="modal-content">
-        <h2>Weekly Recap 🏆</h2>
-        <p class="modal-subtitle">Here is your performance for the last 7 days:</p>
-        <div class="summary-stats">
-          <div class="stat-box">
-            <span>💧 Average Water</span>
-            <strong id="avg-water">0 cups</strong>
-          </div>
-          <div class="stat-box">
-            <span>👟 Total Steps Sessions</span>
-            <strong id="total-steps-week">0</strong>
-          </div>
-        </div>
-        <button class="btn btn-save" id="btn-close-summary">Awesome!</button>
-      </div>
-    </dialog>
-
   <script src="popup.js"></script>
 </body>
 </html>
